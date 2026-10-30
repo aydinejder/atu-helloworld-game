@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ATÜ HELLOWORLD: PAIR & CODE</title>
     <script src="tailwind.js"></script>
-    <link rel="stylesheet" href="all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="confetti.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@600;700&family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
 
@@ -169,7 +169,7 @@
 
     <div id="toast-container" class="absolute top-24 z-40 pointer-events-none flex flex-col items-center"></div>
 
-    <header class="w-full max-w-[1400px] flex justify-between items-center bg-atu-card/90 border-2 border-atu-lightPurple/70 rounded-2xl p-2.5 backdrop-blur-xl mb-1.5 shadow-2xl atu-border-glow shrink-0 z-10">
+    <header class="w-full max-w-[1400px] flex flex-wrap justify-between items-center bg-atu-card/90 border-2 border-atu-lightPurple/70 rounded-2xl p-2.5 backdrop-blur-xl mb-1.5 shadow-2xl atu-border-glow shrink-0 z-10">
         <div class="flex items-center space-x-3">
             <button onclick="promptNewPlayer()" class="bg-atu-purple/40 hover:bg-atu-purple hover:scale-105 text-white font-bold p-3 rounded-xl border border-atu-lightPurple/80 transition flex items-center shadow-lg" title="Giriş Ekranına Dön">
                 <i class="fa-solid fa-arrow-left text-lg sm:text-xl"></i>
@@ -191,7 +191,7 @@
             </div>
         </div>
 
-        <div class="flex items-center space-x-3 sm:space-x-4 bg-black/60 px-4 py-2 rounded-2xl border-2 border-atu-lightPurple/60 shadow-2xl">
+        <div class="flex flex-wrap items-center space-x-3 sm:space-x-4 bg-black/60 px-4 py-2 rounded-2xl border-2 border-atu-lightPurple/60 shadow-2xl">
             <div class="text-right">
                 <span class="text-[9px] text-gray-300 block uppercase font-orbitron font-bold">OYUNCU / MOD</span>
                 <span id="player-display-name" class="font-black text-atu-cyan text-xs sm:text-sm font-orbitron truncate max-w-[110px] block">Misafir (16)</span>
@@ -240,7 +240,7 @@
             </div>
 
             <div class="relative w-full h-full flex-1 min-h-0">
-                <div id="game-grid" class="grid gap-2.5 w-full h-full opacity-40 pointer-events-none transition-all duration-300"></div>
+                <div id="game-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5 w-full h-full opacity-40 pointer-events-none transition-all duration-300"></div>
 
                 <div id="center-start-overlay" class="absolute inset-0 flex items-center justify-center z-20">
                     <button onclick="startGameTimer()" class="px-8 py-4 bg-gradient-to-r from-atu-purple via-atu-lightPurple to-atu-cyan text-black font-orbitron font-black text-lg sm:text-xl rounded-2xl border-2 border-white/80 shadow-[0_0_30px_rgba(34,211,238,0.8)] hover:scale-105 transition transform active:scale-95 animate-pulse tracking-wider">
