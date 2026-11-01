@@ -6,6 +6,7 @@
     <title>ATÜ HELLOWORLD: PAIR & CODE</title>
     <script src="tailwind.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/all.min.css">
     <script src="confetti.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@600;700&family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
 
@@ -163,8 +164,7 @@
         }
     </style>
 </head>
-<body class="h-screen w-screen text-white flex flex-col justify-between items-center p-2 sm:p-3 overflow-hidden relative">
-    <!--merhaba_ben_ejderaydin-->
+<body class="h-screen w-screen text-white flex flex-col justify-between items-center p-2 sm:p-3 overflow-y-auto lg:overflow-hidden relative">
     <canvas id="global-matrix-canvas"></canvas>
 
     <div id="toast-container" class="absolute top-24 z-40 pointer-events-none flex flex-col items-center"></div>
@@ -253,11 +253,11 @@
         <div class="bg-atu-card/80 border-2 border-atu-lightPurple/60 rounded-2xl p-2.5 sm:p-3 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-0 overflow-hidden atu-border-glow">
             <div class="flex flex-col border-b border-atu-lightPurple/40 pb-2 mb-2 shrink-0 space-y-2">
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
+                    <div onclick="handleAdminClear()" class="flex items-center space-x-2 cursor-pointer select-none" title="Yönetici Sıfırlama (5 Tık)">
                         <i class="fa-solid fa-trophy text-atu-gold text-lg drop-shadow-md"></i>
                         <h2 class="font-orbitron font-extrabold text-sm text-white tracking-wider">LİDERLİK TABLOSU</h2>
                     </div>
-                    <button onclick="clearLeaderboard()" class="text-[9px] text-gray-300 hover:text-atu-red font-orbitron transition">Temizle</button>
+                    <span id="clear-status-msg" class="text-[9px] text-gray-400 font-fira"></span>
                 </div>
 
                 <div class="grid grid-cols-3 gap-1 bg-black/50 p-1 rounded-xl text-[10px] font-orbitron font-bold">
@@ -291,7 +291,7 @@
             
             <form onsubmit="saveUserName(event)" class="space-y-5">
                 <div>
-                    <input type="text" id="username-input" required placeholder="Adınız Soyadınız..." class="w-full px-5 py-3.5 bg-black/70 border-2 border-atu-lightPurple rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-atu-cyan font-bold text-center text-lg font-orbitron shadow-inner tracking-wider">
+                    <input type="text" id="username-input" required maxlength="15" placeholder="Takma Adınız / İsim..." class="w-full px-5 py-3.5 bg-black/70 border-2 border-atu-lightPurple rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-atu-cyan font-bold text-center text-lg font-orbitron shadow-inner tracking-wider">
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-orbitron pt-1">
@@ -382,7 +382,7 @@
                 MÜCADELEN İÇİN TEBRİKLER!
             </h2>
             <p id="lose-desc" class="text-gray-200 text-xs my-2 font-semibold leading-relaxed">
-                Harika bir çabaydı! İstatistiğin kaydedildi.
+                Harika bir çabaydı!
             </p>
 
             <div class="bg-black/50 border border-atu-red/50 rounded-2xl p-3 my-3 text-left space-y-1.5 text-xs font-orbitron">
@@ -442,6 +442,11 @@
             { id: 'code-comment', type: 'code', a: '/* comment */', b: 'Yorum Satırı', sub: 'Kod Notu' }
         ];
 
+        let currentRoundId = 0;
+        let isRoundFinished = false;
+        let activeTimeouts = [];
+        let adminClickCount = 0;
+
         let userName = '';
         let selectedMode = 16;
         let timer = null;
@@ -459,6 +464,37 @@
         let audioCtx = null;
         let isMusicPlaying = false;
         let bgMusicInterval = null;
+
+        function safeSetTimeout(fn, delay) {
+            const roundAtStart = currentRoundId;
+            const timerId = setTimeout(() => {
+                if (currentRoundId === roundAtStart && !isRoundFinished) {
+                    fn();
+                }
+            }, delay);
+            activeTimeouts.push(timerId);
+            return timerId;
+        }
+
+        function clearAllGameTimeouts() {
+            activeTimeouts.forEach(id => clearTimeout(id));
+            activeTimeouts = [];
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
+        }
+
+        function sanitizeInput(str) {
+            if (!str) return '';
+            const temp = document.createElement('div');
+            temp.textContent = str.trim();
+            return temp.innerHTML.trim().substring(0, 15);
+        }
+
+        function escapeHtml(str) {
+            return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
 
         function initAudio() {
             if (!audioCtx) {
@@ -744,18 +780,29 @@
         }
 
         function promptNewPlayer() {
-            stopTimer();
+            currentRoundId++;
+            isRoundFinished = false;
+            clearAllGameTimeouts();
             stopMusic();
             document.getElementById('name-modal').classList.remove('hidden');
         }
 
         function saveUserName(e) {
             e.preventDefault();
-            const input = document.getElementById('username-input').value.trim();
+            const rawInput = document.getElementById('username-input').value;
+            const cleanName = sanitizeInput(rawInput);
             const modeVal = parseInt(document.querySelector('input[name="game-mode-radio"]:checked').value);
             
-            if (input) {
-                userName = input;
+            if (cleanName) {
+                let scores = JSON.parse(localStorage.getItem('atu_matcher_v5_scores') || '[]');
+                const isTaken = scores.some(sc => sc.name.toLowerCase() === cleanName.toLowerCase());
+
+                if (isTaken) {
+                    alert(`"${cleanName}" kullanıcı adı daha önce alınmış!\nLütfen başka bir takma ad seçin.`);
+                    return;
+                }
+
+                userName = cleanName;
                 selectedMode = modeVal;
                 targetPairCount = selectedMode / 2;
                 lives = selectedMode === 16 ? 12 : 15;
@@ -771,7 +818,7 @@
         }
 
         function startGameTimer() {
-            if (isGameStarted) return;
+            if (isGameStarted || isRoundFinished) return;
             isGameStarted = true;
             isBoardLocked = false;
 
@@ -786,6 +833,7 @@
             
             clearInterval(timer);
             timer = setInterval(() => {
+                if (isRoundFinished) return;
                 timeLeft--;
                 document.getElementById('time-left-count').innerText = timeLeft;
                 
@@ -798,11 +846,17 @@
         }
 
         function stopTimer() {
-            clearInterval(timer);
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
         }
 
         function restartGame() {
-            stopTimer();
+            currentRoundId++;
+            isRoundFinished = false;
+            clearAllGameTimeouts();
+
             lives = selectedMode === 16 ? 12 : 15;
             currentScore = 0;
             matchedPairsCount = 0;
@@ -828,81 +882,91 @@
         function selectRandomPairs(count) {
             let selected = [...MANDATORY_PAIRS];
             let needed = count - selected.length;
-            let shuffledPool = [...CARD_POOL].sort(() => Math.random() - 0.5);
+            let shuffledPool = shuffleArray([...CARD_POOL]);
             return [...selected, ...shuffledPool.slice(0, needed)];
         }
 
-        function renderBoard() {
-            const grid = document.getElementById('game-grid');
-            grid.innerHTML = '';
-
-            if (selectedMode === 16) {
-                grid.className = 'grid grid-cols-4 grid-rows-4 gap-3 w-full h-full opacity-40 pointer-events-none transition-all duration-300';
-            } else {
-                grid.className = 'grid grid-cols-5 grid-rows-4 gap-2.5 w-full h-full opacity-40 pointer-events-none transition-all duration-300';
-            }
-
-            const chosenPairs = selectRandomPairs(targetPairCount);
-            let deck = [];
-
-            chosenPairs.forEach(pair => {
-                pairAttemptCounts[pair.id] = 0;
-                deck.push({ pairId: pair.id, content: pair.a, meta: pair });
-                deck.push({ pairId: pair.id, content: pair.b, meta: pair });
-            });
-
-            deck.sort(() => Math.random() - 0.5);
-
-            deck.forEach(cardData => {
-                const cardEl = document.createElement('div');
-                cardEl.className = 'card-container cursor-pointer w-full h-full min-h-0';
-                cardEl.dataset.pairId = cardData.pairId;
-
-                let frontContentHTML = '';
-
-                if (cardData.meta.type === 'img') {
-                    frontContentHTML = `
-                        <div class="w-20 h-20 sm:w-24 sm:h-24 shrink-0 flex items-center justify-center p-0.5">
-                            <img src="${cardData.content}" alt="Logo" class="max-w-full max-h-full object-contain rounded drop-shadow-lg scale-105">
-                        </div>
-                    `;
-                } else if (cardData.meta.type === 'icon') {
-                    if (cardData.meta.icon) {
-                        frontContentHTML = `<i class="${cardData.meta.icon} text-3xl sm:text-4xl mb-1 drop-shadow-md" style="color: ${cardData.meta.color}"></i>`;
-                    } else {
-                        frontContentHTML = `<div class="text-3xl sm:text-4xl font-black font-orbitron drop-shadow-md" style="color: ${cardData.meta.color}">${cardData.meta.customText}</div>`;
-                    }
-                    frontContentHTML += `<span class="font-orbitron font-extrabold text-xs sm:text-sm leading-tight text-center text-purple-950 truncate max-w-full">${cardData.content}</span>`;
-                } else if (cardData.meta.type === 'code') {
-                    frontContentHTML = `
-                        <div class="bg-slate-900 border border-atu-cyan/60 px-3 py-1.5 rounded-lg text-center max-w-full shadow-inner mb-0.5">
-                            <span class="font-fira font-bold text-sm sm:text-base text-atu-cyan tracking-tight">${cardData.content}</span>
-                        </div>
-                    `;
-                }
-
-                cardEl.innerHTML = `
-                    <div class="card-inner">
-                        <div class="card-front flex flex-col items-center justify-center p-1">
-                            <div class="flex flex-col items-center leading-none">
-                                <i class="fa-solid fa-code text-atu-cyan text-xs mb-1 opacity-80"></i>
-                                <span class="font-orbitron font-black text-sm sm:text-base tracking-widest text-atu-cyan drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">HELLO</span>
-                                <span class="font-orbitron font-black text-sm sm:text-base tracking-widest text-atu-gold drop-shadow-[0_0_8px_rgba(251,191,36,0.8)] mt-0.5">WORLD</span>
-                                <div class="w-6 h-0.5 bg-atu-gold/60 rounded-full mt-1"></div>
-                            </div>
-                        </div>
-
-                        <div class="card-back flex flex-col items-center justify-center p-1 text-center">
-                            ${frontContentHTML}
-                            <span class="text-[9px] sm:text-[10px] text-purple-900 font-fira font-bold mt-0.5 truncate max-w-full">${cardData.meta.sub}</span>
-                        </div>
-                    </div>
-                `;
-
-                cardEl.addEventListener('click', () => handleCardClick(cardEl));
-                grid.appendChild(cardEl);
-            });
+        // Gerçek Rastgele Karıştırma Algoritması (Fisher-Yates Shuffle)
+        function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
         }
+        return array;
+    }
+
+    function renderBoard() {
+    const grid = document.getElementById('game-grid');
+    grid.innerHTML = '';
+
+    if (selectedMode === 16) {
+        grid.className = 'grid grid-cols-4 grid-rows-4 gap-3 w-full h-full opacity-40 pointer-events-none transition-all duration-300';
+    } else {
+        grid.className = 'grid grid-cols-5 grid-rows-4 gap-2.5 w-full h-full opacity-40 pointer-events-none transition-all duration-300';
+    }
+
+    const chosenPairs = selectRandomPairs(targetPairCount);
+    let deck = [];
+
+    chosenPairs.forEach(pair => {
+        pairAttemptCounts[pair.id] = 0;
+        deck.push({ pairId: pair.id, content: pair.a, meta: pair });
+        deck.push({ pairId: pair.id, content: pair.b, meta: pair });
+    });
+
+    // Eski 'deck.sort(() => Math.random() - 0.5)' yerine mükemmel karıştırma:
+    shuffleArray(deck);
+
+    deck.forEach(cardData => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card-container cursor-pointer w-full h-full min-h-0';
+        cardEl.dataset.pairId = cardData.pairId;
+
+        let frontContentHTML = '';
+
+        if (cardData.meta.type === 'img') {
+            frontContentHTML = `
+                <div class="w-20 h-20 sm:w-24 sm:h-24 shrink-0 flex items-center justify-center p-0.5">
+                    <img src="${cardData.content}" alt="Logo" class="max-w-full max-h-full object-contain rounded drop-shadow-lg scale-105">
+                </div>
+            `;
+        } else if (cardData.meta.type === 'icon') {
+            if (cardData.meta.icon) {
+                frontContentHTML = `<i class="${cardData.meta.icon} text-3xl sm:text-4xl mb-1 drop-shadow-md" style="color: ${cardData.meta.color}"></i>`;
+            } else {
+                frontContentHTML = `<div class="text-3xl sm:text-4xl font-black font-orbitron drop-shadow-md" style="color: ${cardData.meta.color}">${cardData.meta.customText}</div>`;
+            }
+            frontContentHTML += `<span class="font-orbitron font-extrabold text-xs sm:text-sm leading-tight text-center text-purple-950 truncate max-w-full">${cardData.content}</span>`;
+        } else if (cardData.meta.type === 'code') {
+            frontContentHTML = `
+                <div class="bg-slate-900 border border-atu-cyan/60 px-3 py-1.5 rounded-lg text-center max-w-full shadow-inner mb-0.5">
+                    <span class="font-fira font-bold text-sm sm:text-base text-atu-cyan tracking-tight">${cardData.content}</span>
+                </div>
+            `;
+        }
+
+        cardEl.innerHTML = `
+            <div class="card-inner">
+                <div class="card-front flex flex-col items-center justify-center p-1">
+                    <div class="flex flex-col items-center leading-none">
+                        <i class="fa-solid fa-code text-atu-cyan text-xs mb-1 opacity-80"></i>
+                        <span class="font-orbitron font-black text-sm sm:text-base tracking-widest text-atu-cyan drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">HELLO</span>
+                        <span class="font-orbitron font-black text-sm sm:text-base tracking-widest text-atu-gold drop-shadow-[0_0_8px_rgba(251,191,36,0.8)] mt-0.5">WORLD</span>
+                        <div class="w-6 h-0.5 bg-atu-gold/60 rounded-full mt-1"></div>
+                    </div>
+                </div>
+
+                <div class="card-back flex flex-col items-center justify-center p-1 text-center">
+                    ${frontContentHTML}
+                    <span class="text-[9px] sm:text-[10px] text-purple-900 font-fira font-bold mt-0.5 truncate max-w-full">${cardData.meta.sub}</span>
+                </div>
+            </div>
+        `;
+
+        cardEl.addEventListener('click', () => handleCardClick(cardEl));
+        grid.appendChild(cardEl);
+    });
+}
 
         function showToast(text, colorClass = 'text-atu-gold') {
             const container = document.getElementById('toast-container');
@@ -910,11 +974,11 @@
             toast.className = `toast-msg font-orbitron font-black text-base sm:text-lg bg-black/80 border-2 border-atu-lightPurple px-4 py-2 rounded-2xl shadow-2xl ${colorClass}`;
             toast.innerText = text;
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 1600);
+            safeSetTimeout(() => toast.remove(), 1600);
         }
 
         function handleCardClick(cardEl) {
-            if (isBoardLocked || !isGameStarted) return;
+            if (isBoardLocked || !isGameStarted || isRoundFinished) return;
             if (cardEl.classList.contains('flipped') || cardEl.classList.contains('card-matched')) return;
 
             playFlipSound();
@@ -932,8 +996,11 @@
             const pair1 = card1.dataset.pairId;
             const pair2 = card2.dataset.pairId;
             const isMatch = pair1 === pair2;
+            const roundAtCheck = currentRoundId;
 
-            setTimeout(() => {
+            safeSetTimeout(() => {
+                if (currentRoundId !== roundAtCheck || isRoundFinished) return;
+
                 if (isMatch) {
                     playMatchSound();
                     card1.classList.add('card-matched');
@@ -960,7 +1027,7 @@
                     if (matchedPairsCount === targetPairCount) {
                         stopTimer();
                         stopMusic();
-                        setTimeout(handleWin, 400);
+                        safeSetTimeout(handleWin, 400);
                     }
                 } else {
                     playMismatchSound();
@@ -974,9 +1041,9 @@
                     if (lives <= 0) {
                         stopTimer();
                         stopMusic();
-                        setTimeout(() => handleLose('can'), 600);
+                        safeSetTimeout(() => handleLose('can'), 600);
                     } else {
-                        setTimeout(() => {
+                        safeSetTimeout(() => {
                             card1.classList.remove('flipped');
                             card2.classList.remove('flipped');
                             flippedCards = [];
@@ -988,6 +1055,10 @@
         }
 
         function handleWin() {
+            if (isRoundFinished) return;
+            isRoundFinished = true;
+            clearAllGameTimeouts();
+
             const modeMultiplier = selectedMode === 20 ? 1.3 : 1.0;
             const livesBonus = lives * 2;
             const timeBonus = timeLeft * 2;
@@ -996,7 +1067,7 @@
 
             playVictoryFanfare();
             speakNaturalVictory(userName, finalTotalScore);
-            confetti({ particleCount: 180, spread: 100, origin: { y: 0.6 } });
+            if (typeof confetti === 'function') confetti({ particleCount: 180, spread: 100, origin: { y: 0.6 } });
 
             document.getElementById('win-personalized-title').innerText = `🚀 TEBRİKLER ${userName.toUpperCase()}!`;
             document.getElementById('winner-name-display').innerText = `${userName} (${selectedMode} Kartlı Mod)`;
@@ -1011,6 +1082,10 @@
         }
 
         function handleLose(reason) {
+            if (isRoundFinished) return;
+            isRoundFinished = true;
+            clearAllGameTimeouts();
+
             playLossSound();
 
             const loseTitle = document.getElementById('lose-title');
@@ -1030,7 +1105,7 @@
             document.getElementById('lose-matched-pairs').innerText = `${matchedPairsCount} / ${targetPairCount} Eşleşme`;
             document.getElementById('lose-final-score').innerText = `${currentScore} Puan`;
             
-            saveToLeaderboard(userName, currentScore, selectedMode);
+            // Kaybedenlerin skoru kaydedilmiyor!
             document.getElementById('lose-modal').classList.remove('hidden');
         }
 
@@ -1057,8 +1132,20 @@
         }
 
         function saveToLeaderboard(name, totalScore, mode) {
+            const cleanName = sanitizeInput(name) || 'Misafir';
             let scores = JSON.parse(localStorage.getItem('atu_matcher_v5_scores') || '[]');
-            scores.push({ name, mode, totalScore });
+            
+            const existingIndex = scores.findIndex(
+                sc => sc.name.toLowerCase() === cleanName.toLowerCase() && sc.mode === mode
+            );
+
+            if (existingIndex !== -1) {
+                if (totalScore > scores[existingIndex].totalScore) {
+                    scores[existingIndex].totalScore = totalScore;
+                }
+            } else {
+                scores.push({ name: cleanName, mode, totalScore });
+            }
             
             scores.sort((a, b) => b.totalScore - a.totalScore);
             scores = scores.slice(0, 30);
@@ -1088,7 +1175,7 @@
             }
 
             if (scores.length === 0) {
-                container.innerHTML = `<div class="text-center text-[10px] text-gray-300 py-8 font-fira font-semibold">Bu kategoride henüz skor yok.<br>İlk yarışmacı sen ol!</div>`;
+                container.innerHTML = `<div class="text-center text-xs text-gray-300 py-8 font-fira font-semibold">Bu kategoride henüz zafer skoru yok.<br>İlk kazanan sen ol!</div>`;
                 return;
             }
 
@@ -1096,24 +1183,35 @@
                 const rankColor = idx === 0 ? 'text-atu-gold' : idx === 1 ? 'text-gray-200' : idx === 2 ? 'text-amber-500' : 'text-atu-cyan';
 
                 return `
-                    <div class="flex items-center justify-between bg-black/40 p-1.5 rounded-lg border border-atu-lightPurple/30 text-[11px] font-orbitron shadow-md">
-                        <div class="flex items-center space-x-1.5">
-                            <span class="font-bold ${rankColor} w-3 text-[10px]">#${idx + 1}</span>
-                            <span class="font-bold text-white truncate max-w-[95px] text-[10px]">${sc.name}</span>
-                            <span class="text-[8px] bg-atu-purple/40 text-atu-glow px-1 rounded font-fira">${sc.mode}K</span>
+                    <div class="flex items-center justify-between bg-black/50 px-3 py-2 rounded-xl border border-atu-lightPurple/40 text-xs sm:text-sm font-orbitron shadow-md hover:border-atu-cyan/60 transition">
+                        <div class="flex items-center space-x-2.5 truncate">
+                            <span class="font-black ${rankColor} w-5 text-xs sm:text-sm shrink-0">#${idx + 1}</span>
+                            <span class="font-extrabold text-white truncate max-w-[130px] sm:max-w-[160px] text-xs sm:text-sm tracking-wide">${escapeHtml(sc.name)}</span>
+                            <span class="text-[9px] sm:text-[10px] bg-atu-purple/60 text-atu-glow px-1.5 py-0.5 rounded-md font-fira border border-atu-lightPurple/40 shrink-0 font-bold">${sc.mode}K</span>
                         </div>
-                        <div class="flex items-center space-x-1.5 text-[10px]">
-                            <span class="text-atu-gold font-black"><i class="fa-solid fa-star mr-0.5"></i>${sc.totalScore} P</span>
+                        <div class="flex items-center space-x-1 shrink-0 ml-2">
+                            <span class="text-atu-gold font-black text-xs sm:text-sm"><i class="fa-solid fa-star mr-1 text-[11px]"></i>${sc.totalScore} P</span>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        function clearLeaderboard() {
-            if (confirm("Liderlik tablosunu temizlemek istediğinize emin misiniz?")) {
-                localStorage.removeItem('atu_matcher_v5_scores');
-                renderLeaderboard();
+        function handleAdminClear() {
+            adminClickCount++;
+            const msgEl = document.getElementById('clear-status-msg');
+            if (msgEl && adminClickCount > 1) {
+                msgEl.innerText = `(${5 - adminClickCount})`;
+            }
+
+            if (adminClickCount >= 5) {
+                adminClickCount = 0;
+                if (msgEl) msgEl.innerText = '';
+                if (confirm("YÖNETİCİ ONAYI:\nTüm liderlik tablosunu temizlemek istediğinize emin misiniz?")) {
+                    localStorage.removeItem('atu_matcher_v5_scores');
+                    renderLeaderboard();
+                    alert("Liderlik tablosu başarıyla sıfırlandı.");
+                }
             }
         }
 
