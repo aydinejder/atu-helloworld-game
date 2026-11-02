@@ -767,7 +767,7 @@
                     osc.frequency.setValueAtTime(notes[noteIdx], now);
 
                     // Yüksek ve net ses için 0.25 yapıldı
-                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.setValueAtTime(0.5, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
                     osc.connect(gain);
