@@ -766,8 +766,8 @@
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(notes[noteIdx], now);
 
-                    // Arka plan müzik ses seviyesi (0.08 yapıldı)
-                    gain.gain.setValueAtTime(0.08, now);
+                    // Yüksek ve net ses için 0.25 yapıldı
+                    gain.gain.setValueAtTime(0.25, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
                     osc.connect(gain);
