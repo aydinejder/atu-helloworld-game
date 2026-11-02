@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0b0517">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>ATÜ HELLOWORLD: PAIR & CODE</title>
     <script src="tailwind.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -222,6 +226,10 @@
 
             <button id="music-btn" onclick="toggleMusic()" class="text-xs sm:text-sm bg-atu-purple/40 hover:bg-atu-purple p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition text-white border border-atu-lightPurple/60 shadow-md" title="Müziği Aç/Kapat">
                 <i id="music-icon" class="fa-solid fa-volume-xmark text-atu-red"></i>
+            </button>
+
+            <button onclick="requestFullScreenMode()" class="text-xs sm:text-sm bg-atu-purple/40 hover:bg-atu-purple p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition text-white border border-atu-lightPurple/60 shadow-md" title="Tam Ekran">
+                <i class="fa-solid fa-expand text-atu-cyan"></i>
             </button>
         </div>
     </header>
@@ -465,6 +473,17 @@
         let audioCtx = null;
         let isMusicPlaying = false;
         let bgMusicInterval = null;
+
+        function requestFullScreenMode() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(() => {});
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            }
+        }
 
         function safeSetTimeout(fn, delay) {
             const roundAtStart = currentRoundId;
@@ -766,8 +785,7 @@
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(notes[noteIdx], now);
 
-                    // Yüksek ve net ses için 0.25 yapıldı
-                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.setValueAtTime(0.25, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
                     osc.connect(gain);
@@ -814,6 +832,7 @@
                 document.getElementById('username-input').value = '';
                 document.getElementById('name-modal').classList.add('hidden');
                 
+                requestFullScreenMode();
                 startMusic();
                 restartGame();
             }
@@ -821,6 +840,7 @@
 
         function startGameTimer() {
             if (isGameStarted || isRoundFinished) return;
+            requestFullScreenMode();
             isGameStarted = true;
             isBoardLocked = false;
 
